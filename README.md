@@ -22,11 +22,13 @@
 ### 1. 硬體區塊圖 (Block Diagram)
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#ffffff'}}}%%
 flowchart TD
-    %% 外部輸入 (連結索引 0, 1)
-    clk([外部輸入 clk_4096Hz]) --> TOP
-    rst([外部輸入 rst]) --> TOP
+    %% 外部輸入
+    clk([外部輸入 clk_4096Hz]) --> DC
+    rst([外部輸入 rst]) --> DC
+    rst --> FSM
+    rst --> CNTH
+    rst --> CNTL
 
     subgraph TOP [Breathing PWM Top 頂層模組]
         direction TB
@@ -48,31 +50,30 @@ flowchart TD
             CNTL["u_counter_LOW<br/>- 上限: limit_low<br/>- 致能: en_low<br/>- 完成: done_low"]
         end
 
-        limits -->|傳遞上限值| CNTH
-        limits -->|傳遞上限值| CNTL
+        limits --> CNTH
+        limits --> CNTL
 
         %% FSM 控制核心
         FSM["【 FSM 核心控制狀態機 】<br/>( 具備 Look-Ahead 預判優化機制 )<br/>- 狀態: ST_HIGH / ST_LOW<br/>- 提早檢查下一個狀態的 limit 是否為 0"]
 
-        CNTH -->|done_high 完成| FSM
-        CNTL -->|done_low 完成| FSM
-        FSM -->|en_high 致能| CNTH
-        FSM -->|en_low 致能| CNTL
+        CNTH -->|done_high| FSM
+        CNTL -->|done_low| FSM
+        FSM -->|en_high| CNTH
+        FSM -->|en_low| CNTL
 
         %% 輸出邏輯
         OUT["【 同步輸出邏輯 】<br/>根據當前 FSM 狀態輸出<br/>[ ST_HIGH ? '1' : '0' ]"]
-        FSM -->|當前狀態 current_state| OUT
+        FSM --> OUT
     end
 
-    %% 外部輸出 (連結索引 14, 15)
+    %% 外部輸出
     duty_vec --> out_duty([頂層輸出端口 cnt_duty_out])
     OUT --> led([頂層輸出端口 led_out])
 
-    %% 修正外部隱形線：強制設定對外連線為明顯的灰色，並加粗線條
-    linkStyle 0 stroke:#888888,stroke-width:2px;
-    linkStyle 1 stroke:#888888,stroke-width:2px;
-    linkStyle 14 stroke:#888888,stroke-width:2px;
-    linkStyle 15 stroke:#888888,stroke-width:2px;
+    %% 全域外觀設定：保證黑白模式下線條、框框、字體都清晰，且絕不報錯
+    classDef default fill:#ffffff,stroke:#333333,stroke-width:1px,color:#000000;
+    classDef io fill:#f5f5f5,stroke:#666666,stroke-width:1px,color:#000000;
+    class clk,rst,out_duty,led io;
 ```
 
 ### 2. FSM 狀態轉移邏輯
