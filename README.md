@@ -8,7 +8,7 @@
 
 ---
 
-## 🚀 專案特點
+## 專案特點
 
 * **雙計數器獨立控制**：高電位時間與低電位時間分別由兩個獨立的子模組計數器管理，動態載入上限值（Limit）。
 * **Look-Ahead 預判機制**：FSM 在狀態轉換前，會先行檢查下一個狀態的 `limit` 是否為 0。若為 0 則直接留守當前狀態，達到 100% 與 0% Duty Cycle 的純淨波形輸出。
@@ -24,7 +24,7 @@
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#ffffff'}}}%%
 flowchart TD
-    %% 外部輸入
+    %% 外部輸入 (連結索引 0, 1)
     clk([外部輸入 clk_4096Hz]) --> TOP
     rst([外部輸入 rst]) --> TOP
 
@@ -64,9 +64,15 @@ flowchart TD
         FSM -->|當前狀態 current_state| OUT
     end
 
-    %% 外部輸出
+    %% 外部輸出 (連結索引 14, 15)
     duty_vec --> out_duty([頂層輸出端口 cnt_duty_out])
     OUT --> led([頂層輸出端口 led_out])
+
+    %% 修正外部隱形線：強制設定對外連線為明顯的灰色，並加粗線條
+    linkStyle 0 stroke:#888888,stroke-width:2px;
+    linkStyle 1 stroke:#888888,stroke-width:2px;
+    linkStyle 14 stroke:#888888,stroke-width:2px;
+    linkStyle 15 stroke:#888888,stroke-width:2px;
 ```
 
 ### 2. FSM 狀態轉移邏輯
@@ -76,7 +82,7 @@ flowchart TD
 
 ---
 
-## 📂 檔案結構
+## 檔案結構
 
 ```bash
 ├── src/
@@ -89,7 +95,7 @@ flowchart TD
 
 ---
 
-## 📊 訊號說明
+## 訊號說明
 
 | 端口/訊號名稱 | 方向 | 型態 | 功能描述 |
 | --- | --- | --- | --- |
@@ -100,7 +106,7 @@ flowchart TD
 
 ---
 
-## 💻 模擬與驗證
+## 模擬與驗證
 
 ### 模擬設定
 
@@ -118,7 +124,7 @@ flowchart TD
 
 ---
 
-## 🛠️ 如何在 Vivado 中運行
+## 如何在 Vivado 中運行
 
 1. 打開 Vivado 並建立一個新專案（Target Device 依你的 FPGA 板子而定）。
 2. 將 `src/` 資料夾下的 VHDL 檔案加入成 **Design Sources**。
