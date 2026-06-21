@@ -21,6 +21,7 @@
 
 ### 1. 硬體區塊圖 (Block Diagram)
 
+```mermaid
 flowchart TD
     %% 外部輸入訊號
     clk([外部輸入 clk_4096Hz]) --> TOP
@@ -72,6 +73,7 @@ flowchart TD
     style FSM fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
     style DC fill:#fffde7,stroke:#fbc02d,stroke-width:2px
     style OUT fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+```
 
 ### 2. FSM 狀態轉移邏輯
 
