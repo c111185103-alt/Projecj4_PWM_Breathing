@@ -22,57 +22,51 @@
 ### 1. 硬體區塊圖 (Block Diagram)
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#ffffff'}}}%%
 flowchart TD
-    %% 外部輸入訊號
+    %% 外部輸入
     clk([外部輸入 clk_4096Hz]) --> TOP
     rst([外部輸入 rst]) --> TOP
 
     subgraph TOP [Breathing PWM Top 頂層模組]
         direction TB
         
-        %% 步進控制區塊
-        DC["呼吸調變與步進控制區塊 (Duty Control)<br/>- 內含減速計數器 (cnt_8_cycles) 與方向暫存器 (my_direction)<br/>- 負責更新亮度值 duty_reg (0~31)"]
+        %% 步進控制
+        DC["【 呼吸調變與步進控制區塊 】<br/>1. 内含減速計數器 cnt_8_cycles<br/>2. 方向暫存器 my_direction<br/>3. 負責更新亮度值 duty_reg (0~31)"]
         
-        %% 訊號分支與指派
-        duty_vec["cnt_duty_out (轉為 5-bit 向量)"]
-        limits["極限值動態指派<br/>limit_high <= duty_reg<br/>limit_low <= 31 - duty_reg"]
+        %% 輸出信號分支
+        duty_vec["頂層暫存器指派<br/>cnt_duty_out <= duty_reg"]
+        limits["極限值動態運算<br/>limit_high <= duty_reg<br/>limit_low <= 31 - duty_reg"]
         
         DC -->|duty_reg| duty_vec
         DC -->|duty_reg| limits
 
-        %% 計數器子模組
-        subgraph Counters [雙可配置計數器架構]
+        %% 計數器子模組 (平行排列)
+        subgraph Counters [雙可配置計數器模組架構]
             direction LR
-            CNTH["u_counter_HIGH<br/>- limit: limit_high<br/>- en: en_high<br/>- done: done_high"]
-            CNTL["u_counter_LOW<br/>- limit: limit_low<br/>- en: en_low<br/>- done: done_low"]
+            CNTH["u_counter_HIGH<br/>- 上限: limit_high<br/>- 致能: en_high<br/>- 完成: done_high"]
+            CNTL["u_counter_LOW<br/>- 上限: limit_low<br/>- 致能: en_low<br/>- 完成: done_low"]
         end
 
-        limits -->|limit_high| CNTH
-        limits -->|limit_low| CNTL
+        limits -->|傳遞上限值| CNTH
+        limits -->|傳遞上限值| CNTL
 
         %% FSM 控制核心
-        FSM["FSM 核心控制狀態機 (Look-Ahead 預判優化)<br/>- 狀態：ST_HIGH (高電位), ST_LOW (低電位)<br/>- 提早檢查下一個狀態之 limit 是否為 0"]
+        FSM["【 FSM 核心控制狀態機 】<br/>( 具備 Look-Ahead 預判優化機制 )<br/>- 狀態: ST_HIGH / ST_LOW<br/>- 提早檢查下一個狀態的 limit 是否為 0"]
 
-        CNTH -->|done_high| FSM
-        CNTL -->|done_low| FSM
-        FSM -.->|en_high| CNTH
-        FSM -.->|en_low| CNTL
+        CNTH -->|done_high 完成| FSM
+        CNTL -->|done_low 完成| FSM
+        FSM -->|en_high 致能| CNTH
+        FSM -->|en_low 致能| CNTL
 
         %% 輸出邏輯
-        OUT["同步輸出邏輯<br/>[ST_HIGH ? '1' : '0']"]
+        OUT["【 同步輸出邏輯 】<br/>根據當前 FSM 狀態輸出<br/>[ ST_HIGH ? '1' : '0' ]"]
         FSM -->|當前狀態 current_state| OUT
     end
 
-    %% 外部輸出訊號
-    duty_vec --> out_duty([頂層輸出 cnt_duty_out])
-    OUT --> led([頂層輸出 led_out])
-
-    %% 區塊美化配色 (GitHub 自動套用)
-    style TOP fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Counters fill:#fafafa,stroke:#666,stroke-dasharray: 5 5
-    style FSM fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
-    style DC fill:#fffde7,stroke:#fbc02d,stroke-width:2px
-    style OUT fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    %% 外部輸出
+    duty_vec --> out_duty([頂層輸出端口 cnt_duty_out])
+    OUT --> led([頂層輸出端口 led_out])
 ```
 
 ### 2. FSM 狀態轉移邏輯
