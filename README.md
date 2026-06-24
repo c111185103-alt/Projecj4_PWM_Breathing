@@ -1,7 +1,3 @@
-這是一份為你的 GitHub 專案量身打造的 `README.md` 範本。內容融合了你的硬體設計特色、Look-Ahead 優化創新點，以及模擬波形分析。你可以直接複製並貼到 GitHub 的 README 中！
-
----
-
 # Project 4: 基於 FSM 控制雙計數器的 PWM 呼吸燈
 
 本專案使用 **VHDL** 語言在 **Xilinx Vivado** 環境下開發，實現了一個具備硬體優化的 PWM 呼吸燈控制系統。系統核心採用狀態機（FSM）動態控制兩個可配置計數器（`configurable_counter`），並加入 **Look-Ahead（前瞻預判）** 邏輯，完美解決了傳統雙計數器架構在極端工作週期（全亮/全暗）切換時產生的時脈突波（Glitch）問題。
