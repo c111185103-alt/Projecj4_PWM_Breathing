@@ -51,6 +51,7 @@ flowchart TD
 
     DUTY_VEC --> OUT_DUTY([頂層輸出端口 cnt_duty_out])
     OUT --> LED([頂層輸出端口 led_out])
+
 ```
 
 ### 2. FSM 狀態轉移邏輯
@@ -84,7 +85,33 @@ flowchart TD
 
 ---
 
-## 模擬與驗證
+## 實體佈線後時序延遲與硬體穩健性分析 (Post-Routing Timing Analysis)
+
+本專案除了驗證基礎邏輯（Behavioral Simulation）外，進一步通過了 Vivado 的 **Post-Implementation Timing Simulation（實體佈線後時序模擬）**，用以檢驗實體硬體在真實電路走線與閘延遲下的物理表現。
+
+### 理想行為模擬 vs. 佈線後實體時序對比
+
+透過分析專案中的功能模擬圖與繞線後時序波形圖，可以歸納出以下關鍵差異：
+
+| 評比項目 | Behavioral Simulation (功能模擬) `[理想時序波形]` | Post-Implementation Simulation (佈線後時序) `[真實硬體波形]` |
+| --- | --- | --- |
+| **延遲效應模型** | **零延遲模型 (Zero-Delay)**所有內部訊號與時脈邊緣百分之百同步。 | **實體物理延遲 (Propagation Delay)**包含 LUT 閘延遲與晶片內部金屬走線延遲。 |
+| **開機不確定態** | 在模擬啟動初始階段（0~20ns 重置期），各訊號直接瞬間呈現乾淨的電位值。 | 在開機前數奈秒（ns），因內部硬件線路尚未就緒且存在初始建立時間，輸出端會伴隨短暫的**紅色不確定態（X 態）**。 |
+| **亮度跳變沿觀測** | 當時脈沿觸發，亮度分數 `cnt_duty_out` 與狀態控制線無縫同步切換。 | 當 `clk_4096Hz` 上升沿觸發後，`cnt_duty_out` 需經歷一小段傳播延遲（$T_{co} + T_{routing}$）才完成新資料鎖存。 |
+| **極端邊界完整度** | 在 0% 或 100% 邊界時，訊號在理論上絕對維持一條直線。 | 即使在真實硬體走線下，**依舊維持完美直線**，成功通過實體驗證。 |
+
+### Look-Ahead 機制在繞線後的物理優勢
+
+在傳統雙計數器架構中，繞線延遲通常是引發數位毛邊（Glitch）的元兇——當計數器在極端亮度（如全亮 $Duty = 100\%$）切換時，往往會因為 `done` 訊號與狀態機的走線長度不對稱，導致電路產生小於一個時脈週期的短暫下跳突波，這在實體晶片上會造成 LED 閃爍。
+
+本專題導入的 **Look-Ahead 預判邏輯** 在實體佈線後展現出極高的穩健性：
+
+1. **消除競爭冒險 (Hazard Elimination)**：FSM 在前一級就提早將下一個狀態的極限值納入判斷條件（檢查 `limit_low/high` 是否為 0）。即使訊號經過 FPGA 內部的查找表（LUT）和路由金屬線時產生微小偏斜，狀態機也會牢牢鎖死在當前狀態，而不去致能另一個計數器。
+2. **巨大的時序餘裕 (Timing Slack)**：由於本系統運作於低頻時脈 $4096\text{ Hz}$（時脈週期約為 $244.14\,\mu\text{s}$），而佈線後的物理延遲通常僅為奈秒（ns）級別。這使得系統擁有極度充裕的建立時間（Setup Time）與保持時間（Hold Time）餘裕，波形極為純淨，無任何非預期突波。
+
+---
+
+## 模擬與驗證指引 (How to Run)
 
 ### 模擬設定
 
@@ -92,20 +119,10 @@ flowchart TD
 * **時脈週期**：`244.14 us` ($1 / 4096 \text{ Hz}$)
 * **建議模擬時間**：單次完整呼吸（暗 $\rightarrow$ 亮 $\rightarrow$ 暗）大約需要 **3.75 秒**，因此在 Vivado 跑模擬時，請將 Simulation Time 設定為 `4s` 以上。
 
-### 驗證結果
+### 運行步驟
 
-經由 Vivado 時序模擬驗證，專案波形完美呈現以下三個呼吸階段：
-
-1. **漸亮階段**：隨著 `cnt_duty_out` 從 `00` 遞增至 `18`，`led_out` 的高電位脈衝寬度線性變寬。
-2. **全亮過渡**：當 `cnt_duty_out` 到達最大值 `1F`（31）時，Look-Ahead 機制使 `led_out` 保持為一條純淨的連續高電位直線，無任何下跳突波（Glitch）。
-3. **漸暗階段**：亮度由 `1F` 遞減至 `00`，`led_out` 高電位寬度縮窄，並在 `00` 時穩定輸出純低電位。
-
----
-
-## 如何在 Vivado 中運行
-
-1. 打開 Vivado 並建立一個新專案（Target Device 依你的 FPGA 板子而定）。
-2. 將 `src/` 資料夾下的 VHDL 檔案加入成 **Design Sources**。
-3. 將 `sim/` 資料夾下的 Testbench 檔案加入成 **Simulation Sources**。
-4. 點擊左側 Flow Navigator 中的 **Run Simulation** $\rightarrow$ **Run Behavioral Simulation**。
-5. 在 Tcl Console 輸入 `run 4 s` 即可觀測到完整的呼吸燈波形。
+1. 將 `src/` 資料夾下的 VHDL 檔案加入 Vivado 的 **Design Sources**。
+2. 將 `sim/` 資料夾下的 Testbench 檔案加入 Vivado 的 **Simulation Sources**。
+3. 點擊左側選單 **Run Simulation -> Run Behavioral Simulation** 觀測理想功能波形。
+4. 點擊 **Run Simulation -> Run Post-Implementation Timing Simulation** 驗證實體佈線後的真實硬體時序與走線延遲。
+5. 在 Tcl Console 輸入 `run 4 s` 即可觀測到完整的呼吸燈波形。驗證 `led_out` 在極端工作週期（`cnt_duty_out = 1F` 與 `00`）時，是否皆能保持完美純淨的連續直線。
