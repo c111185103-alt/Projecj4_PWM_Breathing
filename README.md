@@ -2,7 +2,7 @@
 
 ---
 
-# Project 4: 基於 FSM 控制雙計數器的 PWM 呼吸燈 (含 Look-Ahead 預判優化)
+# Project 4: 基於 FSM 控制雙計數器的 PWM 呼吸燈
 
 本專案使用 **VHDL** 語言在 **Xilinx Vivado** 環境下開發，實現了一個具備硬體優化的 PWM 呼吸燈控制系統。系統核心採用狀態機（FSM）動態控制兩個可配置計數器（`configurable_counter`），並加入 **Look-Ahead（前瞻預判）** 邏輯，完美解決了傳統雙計數器架構在極端工作週期（全亮/全暗）切換時產生的時脈突波（Glitch）問題。
 
