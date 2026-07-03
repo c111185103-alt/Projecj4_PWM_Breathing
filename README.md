@@ -39,7 +39,7 @@ flowchart TD
     LIMITS --> CNTH
     LIMITS --> CNTL
 
-    FSM["【 FSM 核心控制狀態機 (Look-Ahead) 】<br/>- 狀態: ST_HIGH / ST_LOW<br/>- 提早檢查下一個狀態的 limit 是否為 0"]
+    FSM["【 FSM 核心控制狀態機 】<br/>- 狀態: ST_HIGH / ST_LOW<br/>- 提早檢查下一個狀態的 limit 是否為 0"]
 
     CNTH -->|done_high| FSM
     CNTL -->|done_low| FSM
