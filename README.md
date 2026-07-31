@@ -21,14 +21,10 @@
 
 ![Project 4 系統 Breakdown](./Project4_diagram/breakdown.drawio.png)
 
-> **提醒**：這張圖是介面調整前畫的，如果圖上標示的頂層輸入還是 `clk_4096Hz`，需要更新成 `clk`（`100MHz`），並且補上內部新增的除頻方塊——這是這次介面整合後唯一需要跟著改的地方，其餘子模組階層完全沒變。
-
 ### 2. 系統電路圖與硬體方塊圖 (Hardware Block Diagram)
 電路走線包含時脈輸入、內部除頻、以及 FSM 與計數器之間的動態 Limit 載入總線。
 
 ![Project 4 電路圖/方塊圖](./Project4_diagram/電路圖_方塊圖.drawio.png)
-
-> 同上，`rst` 現在是內部直接接死 `'0'`（不再是外部輸入接腳），如果圖上還畫著外部 `rst` 輸入線，這條也需要拿掉。
 
 ### 3. 有限狀態機控制核心 (FSM State Diagram)
 FSM 在 `ST_HIGH` 與 `ST_LOW` 之間切換。當 done 訊號滿足且預判下一個狀態的上限值不為 0 時跳變；若為極端工作週期（0% 或 100%），則利用預判機制鎖定當前狀態，輸出完美直線。這部分邏輯完全沒有因為這次介面整合而改變。
@@ -43,7 +39,7 @@ FSM 在 `ST_HIGH` 與 `ST_LOW` 之間切換。當 done 訊號滿足且預判下�
 
 | 端口/訊號名稱 | 方向 | 型態 | 功能描述 |
 | --- | --- | --- | --- |
-| `clk` | Input | `std_logic` | 板上原生系統時脈輸入 (100 MHz)，取代原本的 `clk_4096Hz` 外部輸入 |
+| `clk` | Input | `std_logic` | 時脈輸入 (100 MHz)，除頻到 `clk_4096Hz` 輸入 |
 | `led_out` | Output | `std_logic` | PWM 輸出訊號，用於驅動呼吸燈 LED |
 | `cnt_duty_out` | Output | `std_logic_vector(4 downto 0)` | 5-bit 當前亮度分數輸出 (0 ~ 31)，除錯觀察用 |
 
@@ -58,8 +54,6 @@ FSM 在 `ST_HIGH` 與 `ST_LOW` 之間切換。當 done 訊號滿足且預判下�
 
 ![Project 4 Time spec](./Project4_diagram/Timespec.drawio.png)
 
-> 這張圖如果畫出了外部 `clk_4096Hz`/`rst` 輸入的時序關係，也需要對應更新成內部除頻訊號 `clk_4096Hz_i` 的時序，並拿掉 `rst` 的部分。
-
 ---
 
 ## 三、 Testbench 模擬與精確時間軸節點
@@ -69,11 +63,10 @@ FSM 在 `ST_HIGH` 與 `ST_LOW` 之間切換。當 done 訊號滿足且預判下�
 
 ![Project 4 模擬流程 AoV 圖](./Project4_diagram/AOV.drawio.png)
 
-> 這張圖需要整個重畫：原本以「`rst` 釋放」為起點的敘事已經不適用（`rst` 不再是外部可驅動的訊號），現在的起點是「模擬開始、時脈啟動」；圖上所有具體的時間數字（`0.244ms`、`1.000ms`、`8.662ms`、`1,875ms`、`3,750ms` 這些）也全部要換成下方重新算過的數字。
 
 ### 2. 精確功能模擬時間軸節點說明 (Behavioral Timing)
 
-現在的 testbench（`tb_dual_counter_pwm.vhd`）直接產生真正的 `100MHz` 時脈（週期 `10ns`），並把 `DIV_N` 這個 generic 從硬體的 `12207` 降到 `2`，讓內部除頻出來的 `clk_4096Hz_i` 週期變成 `40ns`（硬體上是真正的 `244.14us`，這裡刻意壓縮成模擬好操作的規模，只影響模擬時間長短，不影響電路邏輯本身）。以這組數字為基準，單次完整呼吸週期共 **615,040 ns（615.04 us）**，各重要事件的精確時間點如下：
+testbench（`tb_dual_counter_pwm.vhd`）直接產生真正的 `100MHz` 時脈（週期 `10ns`），並把 `DIV_N` 這個 generic 從硬體的 `12207` 降到 `2`，讓內部除頻出來的 `clk_4096Hz_i` 週期變成 `40ns`（硬體上是真正的 `244.14us`，這裡刻意壓縮成模擬好操作的規模，只影響模擬時間長短，不影響電路邏輯本身）。以這組數字為基準，單次完整呼吸週期共 **615,040 ns（615.04 us）**，各重要事件的精確時間點如下：
 
 * **0 ns — 模擬啟動**：所有暫存器套用宣告時的初始值，`current_state` 為 `ST_HIGH`，`cnt_duty_out` 為 `00000`。因為 `rst` 已經內部接死，不再有「重置期」這個階段，系統從時脈一開始跑就直接進入正常運作。
 * **15 ns — 除頻時脈首沿**：`clk_4096Hz_i` 迎來第一個上升沿（週期 `40ns`），`u_counter_HIGH`／`u_counter_LOW` 開始真正計數。
